@@ -7,19 +7,19 @@
 
 ## 编程工具
 
-[**VS**]("Tools/Visual Studio")
+[**VS**](Tools/Visual Studio)
 
-[**VS Code**]("Tools/VS code")
+[**VS Code**](Tools/VS Code)
 
-[**Vim**](Tools/)
+[**Vim**](Tools/Vim)
 
-[**CMAKE**]("Tools/CMAKE")
+[**CMAKE**](/Tools/CMAKE)
 
 
 
 ## 编程语言
 
-[**C/C++**]("Programming/C&C++")
+[**C/C++**](Programming/C&C++)
 
 
 
