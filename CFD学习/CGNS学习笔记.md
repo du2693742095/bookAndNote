@@ -62,7 +62,7 @@ sudo apt install libtcl8.6 tk8.6-dev
 
 ## 示例文件
 
-- [Example CGNS Files](http://cgns.github.io/CGNSFiles.html)
+- [CGNS官方.case文件](http://cgns.github.io/CGNSFiles.html)
 - [AIAA High Lift Workshop (HiLiftPW)](https://hiliftpw.larc.nasa.gov)
   - [NASA High Lift Common Research Model (HL-CRM) Grids](https://hiliftpw-ftp.larc.nasa.gov/HiLiftPW3/HL-CRM_Grids/)
   - [JAXA Standard Model (JSM) Grids](https://hiliftpw-ftp.larc.nasa.gov/HiLiftPW3/JSM_Grids/)
@@ -76,7 +76,7 @@ sudo apt install libtcl8.6 tk8.6-dev
 - `Label` 表示其类型，通常是以 `_t` 为后缀的预定义类型, 例如Element_t。
 - `Name` 描述节点及其数据的附加字段，通常是由用户自定义的字符串，但有时需符合命名规范, 例如不能和已有的规定结构重名。
 - `Data` 是实际数据，可以为空（用 `MT` 表示）。
-- `子节点ID` 指向其**亲结点 (parent node)** 或**子结点 (child node)** 的链接。
+- `子节点ID` 指向其**父结点 (parent node)** 或**子结点 (child node)** 的链接。
 
 为避免混淆，称树上的结点为**对象 (object)**，而将网格中的点称为**顶点 (vertex)** 或**网格点 (mesh/grid point)**。
 
@@ -94,9 +94,21 @@ sudo apt install libtcl8.6 tk8.6-dev
 - 完整定义：《[Mid-Level Library](https://cgns.github.io/CGNS_docs_current/midlevel/)》
 - 并行版本：《[Parallel CGNS Routines](https://cgns.github.io/CGNS_docs_current/pcgns/)》
 
-## 并行版本
+## 编译选项
 
-并行版的 CGNS/MLL 依赖于并行版的 HDF5，后者依赖于 MPI。安装好MPI后，即可在构建 CGNS/MLL 时，开启并行相关选项：
+这些编译选项的选择会导致后面cmake调用生成脚本时生成不同的代码, 体现在cgnstypes.h文件中.
+
+### 64位版本
+
+64位的CGNS版本可以使得计算机处理超过**20亿坐标或元素**问题, 如果只有32位版本, 则早期的文件最大只能有2/4GB, 超过则无法寻址导致读取失败. 但64位版本不兼容以前的网格与代码, 只能读取以64位程序构建的CGNS文件.
+
+- 64位版本从CGNS3.1开始支持, 需要使用cmake参数 `--enable-64bit` 或者修改cmake代码 `CG_BUILD_64BIT=ON` , 设置后对应的 `CG_BUILD_LEGACY` 会置为OFF.
+
+- 如果想兼容32位版本, 则需要使用编译选项 `CG_BUILD_LEGACY=ON` , 对应的 `CG_BUILD_64BIT` 和 `CG_BUILD_SCOPE` 都需要置为OFF, 编译出来的就只是以前32位的版本.
+
+### 并行版本
+
+并行版的 CGNS/MLL 依赖于并行版的 HDF5，后者依赖于 MPI。安装好MPI后，即可在构建 CGNS/MLL 时，cmake参数如下. 或修改cmake代码将 `CGNS_ENABLE_HDF5=ON` , 然后将 `HDF5_NEED_MPI=ON` . 编译出来的CGNS并行库被称为PCGNS, 一起存在于cgns.lib中, 对应头文件是pcgns.lib.
 
 ```shell
 cmake -D CMAKE_BUILD_TYPE=Debug \
@@ -105,16 +117,63 @@ cmake -D CMAKE_BUILD_TYPE=Debug \
       -G Ninja -B ${CGNS_BUILD_DIR} -S ${CGNS_SOURCE_DIR}
 ```
 
+### 枚举值范围
+
+当启用 `CG_BUILD_SCOPE=ON` 时, 将为所有枚举添加前缀`CG_` , 这个选项一般用于32位程序, 用于不同版本间做区分.
+
+## CGNS的版本及兼容性问题
+
+- 3.1.0版本: 这个版本新增了64位支持, 可以实现超大文件读取, 需要HDF5也是64位支持. 构建 64 位代码时，ADF 文件格式会发生变化, 所有维度都存储为 64 位整数，HDF5 接口也会受到维度大小的影响。3.1 版的 32 位编译也能够读取 64 位 CGNS 文件，但如果大小超过 32 位最大尺度则失败。采用32位模式编译，ADF版本和HDF5接口不变，无论 3.1 版软件如何编译，它都向后兼容早期版本的 CGNS 文件。
+- 3.3.0版本: 为Fortran调用做了可移植性适配, 需要使用Fortran的必须编译3.3.0以上版本
+
+- 4.3.0版本: 解决了4.2.0版本中stat类型与Windows中变量冲突的问题
+
+C解决可移植性问题, 在头文件中声明, 根据CGNS版本将数据类型的长度设置为指定位数
+
+```c
+#if CGNS_VERSION < 3100
+#define cgsize_t int
+#endif
+```
+
 ## 数组索引
 
 入门指南主要用Fortran语言进行演示 Fortran-API，C-API需要在完整定义里面查询, 所有后面带有_f的函数都是Fortran语言, 剩余函数就是C语言接口 。
 
+在CGNS提供的官方库中, 所有的数组下标都是从1开始计算, 这是Fortran的习惯, 和C程序习惯有所不同.
+
 - C 的多维数组*按行 (row major)* 存储，Fortran 的多维数组*按列 (column major)* 存储，因此 *row in C* 对应于 *column in Fortran*。
-- Fortran 的数组索引从 `1` 开始（与 SIDS 一致），而 C 则从 `0` 开始（故调用 C-API 时可能需要转换）。
+- Fortran 的数组索引从 `1` 开始（与 SIDS 一致），而 C 则从 `0` 开始（故调用 C-API 时可能需要转换, 循环都需要从1开始）。
 
 ## 演示代码
 
-下载或克隆 [CGNS 代码库](https://github.com/CGNS/CGNS)后，可在 `${CGNS_SOURCE_DIR}/src/Test_UserGuideCode/` 中找到所有示例的源文件。源文件头部的注释给出了独立构建各示例的方法；若要批量构建所有示例，可在 CMake 中开启 `CGNS_ENABLE_TESTS` 等选项，这样生成的可执行文件位于 `${CGNS_BUILD_DIR}/src/Test_UserGuideCode/` 中。
+克隆 [CGNS 代码库](https://github.com/CGNS/CGNS)后，可在 `${CGNS_SOURCE_DIR}/src/Test_UserGuideCode/` 中找到所有示例的源文件。
+
+- 源文件头部的注释给出了在Linux下独立构建各示例的方法.
+- 若要批量构建所有示例，可在 CMake 中开启 `CGNS_ENABLE_TESTS` 选项，这样生成的可执行文件位于 `${CGNS_BUILD_DIR}/src/Test_UserGuideCode/` 中。
+- 源文件中上面的文件夹存储了示例代码应该有的输出, 用于test检验.
+
+
+
+# 网格的结构组成
+
+## 结构网格
+
+网格由其顶点 *(vertices)* 定义, 主要有4中基本元素: *体 ( volume )* , *单元 ( cell )* , *面 ( face )* , 边 *( edge)* . 一个体是由单元组成, 其中每个单元是由八个最近的相邻顶点所定义的六面体区域组成, 这八个相邻顶点组成六个面, 每个面都是4条边组成, 每条边都是由两个顶点组成, 最终形成一个完成的体.
+
+结构多区域网格 *(multizone grid)* 由多个区域 *(zone)* 组成, 这些区域包括构成该区域中网格的所有顶点, 单元, 面和边. 3D情况下cell就是由面组成的多面体, 2D情况下cell是面或者边, 在1D情况下, 链接两个顶点的边就是一个cell. 用来表述维度坐标的索引是有序的 ( *i* , *j* , *k* )；( *i* , *j* ) 用于二维，( *i* ) 用于一维.
+
+这些用于2D单元中心或3D面中心的索引**由1开始计数**, 一个面的索引已知, 便可以通过计算其最近的相邻顶点索引来获取构成这个面的顶点, 即在结构化网格中, **已知点可以求得面, 已知面也可以获得点**. 
+
+![带有索引的二维网格部分](http://cgns.github.io/CGNS_docs_current/sids/conv.figs/gridnot_fig1.gif)
+
+## 非结构网格
+
+结构网格与非结构网格最大的区别, 就是在于网格顶点的定义上: 
+>  - 结构网格的点之间的邻接是有序、规则的，单元是二维的四边形、三维的六面体, 不用存储元素间坐标关系
+> - 非结构网格的点之间的邻接是无序的、不规则的，每个网格点可以有不同的邻接网格数，单元有二维的三角形、四边形，三维的四面体、六面体、三棱柱和金字塔等多种形状, 需要存储元素间的关系. 元素间的关系通常包括元素类型或者形状, 以及每个元素的顶点列表
+
+在非结构网格中, 顶点从1到 *N* 进行编号组成索引，其中*N*是区域中的节点数。元素由一个或多个节点组成，其中每个顶点由其索引表示。区域 ( Zone ) 由单元cell组成, 每个区域也由其索引进行表示。即非结构网格不像结构网格可以由坐标得出其几何关系，各个顶点间的关系需要专门的表示方式
 
 
 
@@ -122,9 +181,9 @@ cmake -D CMAKE_BUILD_TYPE=Debug \
 
 ## `root` 文件信息
 
-CGNS文件最开始的root节点, 用于存储文件的CGNS版本信息, 由库文件自行处理, 一般不需要读出。
+CGNS文件最开始的root节点, 用于存储文件的CGNS版本, 文件类型, 精度等信息, 由库文件自行处理, 一般不需要读出。
 
-**层级结构**
+### **层级结构**
 
 ```c++
 root
@@ -134,7 +193,7 @@ root
 └── CGNSBase_t  // 可有多个，各表示一个算例
 ```
 
-**对应库函数**
+### **对应库函数**
 
 用于新建对象的函数 `open()` 或 `write()` 总是以 `(int) id` 作为返回值。此 `id` 可以被后续代码用来访问该对象, 相当于操作系统中的文件描述符。
 
@@ -175,11 +234,11 @@ ier = cg_get_file_type(int fn, /* output: */int *file_type);
 
 ## `CGNSBase_t` 根节点
 
-cgns的根节点标识为CGNSBase_t，名称由用户定义。一个文件中可含有多个CGNSBase_t，这些Base可以用于并行计算时候交给不同的MPI节点进行计算，不同的Base间属于计算节点间的并行。
+cgns的根节点标识为CGNSBase_t，名称由用户定义。一个文件中可含有多个CGNSBase_t，这些Base可以用于并行计算时候交给不同的节点进行计算，不同的Base间属于程序间的并行。
 
 `CGNSBase_t`包含计算网格的单元维数(CellDimension) 和物理维数(PhysicalDimension), 还附带又全局使用的信息, 包含参考状态, 一组流动方程, 尺寸单位等。除此之外还有一些由用户自定义的注释信息等。其中CellDimension和PhysicalDimension是必填字段, 读取时需要检测。
 
-**层级结构**
+### **层级结构**
 
 ```c++
 CGNSBase_t
@@ -190,7 +249,7 @@ CGNSBase_t
 └── Zone_t  // 可有多个，各表示一块网格
 ```
 
-**参数解析:** 
+### **参数解析**
 
 1. 三个维度: IndexDimension, CellDimension, PhysicalDimension, 这三个信息会传递给zone_t用于解析
    - `IndexDimension`: 表示引用一个节点所需要的不同索引的数量, 在结构网格 中, indexDimension始终等于cellDimension; 在非结构网格中, indexDimension始终等于1. 所以这个值在每个zone中都是自动生成的.
@@ -198,7 +257,7 @@ CGNSBase_t
    - `PhysicalDimension`: 定义节点位置所需要的坐标数. (1 for 1-D, 2 for 2-D, 3 for 3-D)
 2. `DataClass`: 描述了 CGNS 数据库中包含的数据类的全局默认值.
 
-**对应库函数**
+### **对应库函数**
 
 ```c
 /* write/read CGNSBase_t */
@@ -215,7 +274,9 @@ ier = cg_nbases(int fn, /* output: */int *nbases);
 
 Zone_t包含在CGNSBase_t中。Zone_t包含单个区域相关的所有信息, 包括区域类型、构成该区域网格的单元和顶点的数量、网格顶点的物理坐标、网格运动信息、族、流动解、区域界面连通性、边界条件和区域收敛历史数据等. 其中ZoneType、VertexSize和 CellSize 是必要的字段, 读取时需要检查. 
 
-**层级结构**
+Zone属于分区后的单块网格, 可以交给不同的进程进行计算, 属于进程间的并行.
+
+### **层级结构**
 
 ```c++
 Zone_t
@@ -233,7 +294,7 @@ Zone_t
 └── ZoneGridConnectivity_t  // 多区网格的衔接方式
 ```
 
-**参数解析**
+### **参数解析**
 
 1.  Zone_size\[3][IndexDimension], 即结构网格中列数等于维度数, 非结构网格中列数等于1
     1.  `VertexSize`是每个索引方向上的顶点数, 在非结构网格中顶点数只有一个维度, 即`VertexSize` 是一个数; 在结构化网格中顶点数在每个维度上都有一个, 即`VertexSize` 是一个长度等于维度数的数组
@@ -244,7 +305,7 @@ Zone_t
 4.  `FlowSolution` 包含流动解的数据. 
 5.  `ZoneBC_t` 与区域相关的所有边界条件信息.
 
-**对应库函数**
+### **对应库函数**
 
 ```c
 /* write/read Zone_t */
@@ -266,7 +327,9 @@ ier = cg_zone_read(int i_file, int i_base, int i_zone,
 
 ## 定位操作
 
-**对应库函数**
+根据索引或节点名找到对应数据的位置, 实质上是在CGNS库中移动当前的文件指针, 使得下次访问数据的时候文件存取从goto的位置开始.
+
+### **对应库函数**
 
 ```c
 /* Access a node via label-index or name-0 pairs. */
@@ -274,6 +337,7 @@ ier = cg_zone_read(int i_file, int i_base, int i_zone,
  * 0 = CG_OK, 1 = CG_ERROR, 2 = CG_NODE_NOT_FOUND, 3 = CG_INCORRECT_PATH	 */
 
 ier = cg_goto(int i_file, int i_base, ..., "end");
+ier = cg_gorel( int fn , ... , "end" );
 ier = cg_gopath(int i_file, const char *path);
 /* Delete a child of current node. */
 ier = cg_delete_node(char *node_name);
@@ -297,7 +361,7 @@ cg_gopath(i_file, "/Base/Zone1/User");
 
 当发生错误时, errno会置为非0, 调用cg_get_error获取错误信息。
 
-**对应库函数**
+### **对应库函数**
 
 ```c
 error_message = const char *cg_get_error();
@@ -305,15 +369,39 @@ void cg_error_exit();
 void cg_error_print();
 ```
 
+## 并行IO杂项
+
+使用并行IO前需要先将MPI初始化, 底层调用的是HDF5的并行IO函数, 所以也需要HDF5支持并行模式
+
+ 调用CGNS的并行函数后, 其自动使所有启动的Node并行的读取文件, 读取的数据存在各个节点中, 调用并行获取数据函数时, 由MPI通信自动汇总, 不需要用户再去编写MPI通信流程
+
+### **对应库函数**
+
+```c
+/*Set the MPI communicator*/
+ier = cgp_mpi_comm(int mpicomm);
+/*Set the MPI info object*/
+ier = cgp_mpi_info(MPI_Info info);
+/*Set the parallel IO mode*/
+ier = cgp_pio_mode(PIOmode_t mode);
+void cgp_error_exit();
+```
+
+| 变量名  | 功能                                                         |
+| ------- | ------------------------------------------------------------ |
+| mpicomm | MPI的communicator, 可以通过这个指定使用不同的mpi通讯组       |
+| info    | MPI的信息, 可传递文件分片和内部缓冲区大小等, 用于优化mpi运行流程 |
+| mode    | 设置并行数据读取和写入的模式, 默认为CGP_COLLECTIVE, 允许任意数量的进程访问数据, 且所有进程都必须访问数据 |
 
 
-# 单区网格
+
+# 单区网格坐标
 
 ##  `GridCoordinates_t` (网格坐标)
 
-用于描述与特定zone相关联的网格坐标, 需要zone读取的zone_size[0]中的顶点数信息来申请xyz坐标的大小
+用于描述与特定zone相关联的网格坐标, 需要读取zone中ZoneType的zone_size[0]中的顶点数信息来申请xyz坐标的大小. z坐标的有无与维数有关
 
-**层级结构**
+#### **层级结构**
 
 其中`DataArray_t` 是存储数据的主要结构, 内部描述了数据的类型, 维数和每个维度大小的多维数组, 数据可以是有量纲或无量纲量(压力等)
 
@@ -325,7 +413,7 @@ GridCoordinates_t
     │         CoordinateR | CoordinateTheta | CoordinatePhi
     └── Data: 一维数组，长度 = 顶点数 + 外表层数(ring)  // 沿当前方向
 ```
-**对应库函数**
+#### **对应库函数**
 
 ```c
 /* write/read (GridCoordinates_t) "GridCoordinates" */
@@ -336,31 +424,13 @@ ier = cg_grid_read(int i_file, int i_base, int i_zone, int i_grid,
     /* output: */char *grid_name);
 ier = cg_ncoords( int i_file , int i_base , int i_base , 
     /* output: */int *ncoords );
-
-/* parallel version (need MPI) */
-ier = cgp_coord_write(int i_file, int i_base, int i_zone,?
-    DataType_t data_type/* CGNS_ENUMV(RealDouble) */, char *coord_name,
-    /* output: */int *i_coord);
-ier = cgp_coord_read();  /* undefined */
-ier = cgp_coord_write_data(int i_file, int i_base, int i_zone, int i_coord,
-    cgsize_t *range_min, cgsize_t *range_max,  // 1-based inclusive
-    void *coord_array);
-ier = cgp_coord_read_data(int i_file, int i_base, int i_zone, int i_coord,
-    cgsize_t *range_min, cgsize_t *range_max,  // 1-based inclusive
-    /* output: */void *coord_array);
 ```
-
-其中
-
-- 并行版本的写分两步：
-  - 先用 `cgp_write_coord()` 创建空 `DataArray_t` 对象；
-  - 再用 `cgp_write_coord_data()` 写入当前进程所负责的部分。
 
 ### CoordinateX / Y / Z
 
 实际存储的坐标信息, Z坐标只有在3D情况下才会存在
 
-**对应库函数**
+#### **对应库函数**
 
 ```c
 /* write/read (DataArray_t) "Coordinate[XYZ]" */
@@ -373,6 +443,17 @@ ier = cg_coord_read(int i_file, int i_base, int i_zone,
     cgsize_t *range_min, cgsize_t *range_max,  // 1-based inclusive
     /* output: */void *coord_array);
 
+/* parallel version (need MPI) */
+ier = cgp_coord_write(int i_file, int i_base, int i_zone,
+    DataType_t data_type/* CGNS_ENUMV(RealDouble) */, char *coord_name,
+    /* output: */int *i_coord);
+ier = cgp_coord_read();  /* undefined */
+ier = cgp_coord_write_data(int i_file, int i_base, int i_zone, int i_coord,
+    cgsize_t *range_min, cgsize_t *range_max,  // 1-based inclusive
+    void *coord_array);
+ier = cgp_coord_read_data(int i_file, int i_base, int i_zone, int i_coord,
+    cgsize_t *range_min, cgsize_t *range_max,  // 1-based inclusive
+    /* output: */void *coord_array);
 ```
 
 - `range_min` 和 `range_max` 分别表示坐标的边界, 在c语言中`range_min` 全部初始化为1, `range_max` 根据`zone_size[0]` 顶点数算出来
@@ -385,43 +466,56 @@ ier = cg_coord_read(int i_file, int i_base, int i_zone,
 - `data_type` 应当与 `coord_array` 的类型匹配, 只能是 `RealSingle` 或者 `RealDouble` 
   - `CGNS_ENUMV(RealSingle)` 对应 `float`。
   - `CGNS_ENUMV(RealDouble)` 对应 `double`。
+- 并行版本的写分两步：
+  - 先用 `cgp_write_coord()` 创建空 `DataArray_t` 对象；
+  - 再用 `cgp_write_coord_data()` 写入当前进程所负责的部分。
 
 
+
+# 单元连接性
 
 ## `Elements_t` (非结构网格单元信息)
 
-结构网格的*顶点信息* 已经隐含了*单元信息*，因此不需要显式创建单元。与之相反，非结构网格的单元信息需要显式给出, 且在Element中可以包含有非结构网格的关联信息
+结构网格的*顶点信息* 已经隐含了*单元信息*，因此不需要显式创建单元。与之相反，非结构网格的单元信息需要显式给出, 这里 Element 的含义就是组成一个单元cell的基本类型, 可以是点, 边或面
 
-**层级结构**
+轴对称和旋转坐标的对应内容没有写出, 对应网站的[轴对称和旋转坐标](http://cgns.github.io/CGNS_docs_current/midlevel/grid.html#axisymmetry)
+
+### **层级结构**
 
 ```c++
 Elements_t
-├── IndexRange_t
+├── IndexRange_t	// ElementConnectivity中定义的第一个到最后一个元素的索引
 │   ├── Name: ElementRange
-│   └── Data: int[2] = {first, last}  // 单个 Elements_t 内的单元需连续编号
-├── ElementType_t: 枚举类型
+│   └── Data: int[2] = {first, last}  // 单个Elements_t内的单元需连续编号
+├── ElementType_t: // 元素类型
 │   └── Data: NODE = 2 | BAR_2 = 3 | TRI_3 = 5 | QUAD_4 = 7 |
 │             TETRA_4 = 10 | PYRA_5 = 12 | PENTA_6 = 14 | HEXA_8 = 17 |
 │             NGON_n = 22 | NFACE_n = 23 | MIXED = 20
-└── DataArray_t
-│   ├── Name: ElementConnectivity
+└── DataArray_t  // 存储数据
+│   ├── Name: ElementConnectivity  // 链接信息
 │   └── Data: int[ElementDataSize]  
 │    	// ElementDataSize :=
 │       // 同种单元 ElementSize * NPE(ElementType)
 │       // 多种单元 Sum(NPE(ElementType[n]) + 1)
-│       // NPE := number of nodes for the given ElementType
-└── DataArray_t  // 含多种单元时使用
-    ├── Name: ElementStartOffset
+│       // NPE := 特定ElementType所包含的node数, 例如NPE[HEXA_8]=8
+└── DataArray_t  
+    ├── Name: ElementStartOffset 	// 含多种单元时使用
     └── Data: int[ElementSize + 1] 
 ```
 
-**对应库函数**
+### 对应库函数
 
 ```c
+// read section number
 ier = cg_nsections(int i_file, int i_base, int i_zone,
     /* output: */int *n_sections);
-
-// for fixed-size elements:
+// read Element node Size
+ier = cg_ElementDataSize(int fn, int B, int Z, int S,
+    /* output: */cgsize_t *ElementDataSize);
+// read the size of node for an element of type
+ier = cg_npe(ElementType_t type,  /* output: */int *npe);
+    
+// for mixed cell and face elements info:
 ier = cg_section_write(int i_file, int i_base, int i_zone,
     char *section_name, ElementType_t element_type,
     cgsize_t first, cgsize_t last, int n_boundary,
@@ -429,7 +523,8 @@ ier = cg_section_write(int i_file, int i_base, int i_zone,
 ier = cg_section_read(int i_file, int i_base, int i_zone, int i_sect,
     /* output: */char *section_name, ElementType_t *element_type,
     cgsize_t *first, cgsize_t *last, int *n_boundary, int *parent_flag);
-ier = cg_elements_write();  /* undefined */
+
+// read data
 ier = cg_elements_read(int i_file, int i_base, int i_zone, int i_sect,
     /* output: */cgsize_t *connectivity, cgsize_t *parent_data);
 ier = cg_elements_partial_write(int i_file, int i_base, int i_zone, int i_sect,
@@ -438,14 +533,12 @@ ier = cg_elements_partial_read(int i_file, int i_base, int i_zone, int i_sect,
     cgsize_t first, cgsize_t last,
     /* output: */cgsize_t *connectivity, cgsize_t *parent_data);
 
-// for MIXED | NGON_n | NFACE_n:
+// for MIXED | NGON_n | NFACE_n type:
 ier = cg_poly_section_write(int i_file, int i_base, int i_zone,
     char *section_name, ElementType_t element_type,
     cgsize_t first, cgsize_t last, int n_boundary,
     cgsize_t *connectivity, cgsize_t *offset,
     /* output: */int *i_sect);
-ier = cg_poly_section_read();  /* undefined */
-ier = cg_poly_elements_write();  /* undefined */
 ier = cg_poly_elements_read(int i_file, int i_base, int i_zone, int i_sect,
     /* output: */cgsize_t *connectivity, cgsize_t *offset, cgsize_t *parent_data);
 ier = cg_poly_elements_partial_write(int i_file, int i_base, int i_zone, int i_sect,
@@ -461,13 +554,24 @@ ier = cgp_section_write(int i_file, int i_base, int i_zone,
     /* output: */int *i_sect);
 ier = cgp_elements_write_data(int i_file, int i_base, int i_zone, int i_sect,
     cgsize_t first, cgsize_t last, cgsize_t *connectivity);
-ier = cgp_section_read();  /* undefined */
 ier = cgp_elements_read_data(int i_file, int i_base, int i_zone, int i_sect,
     cgsize_t first, cgsize_t last,
     /* output: */cgsize_t *connectivity);
 ```
 
-其中
+| 变量名          | 功能                                                         |
+| --------------- | ------------------------------------------------------------ |
+| n_sections      | 对应区域中的区域Element个数                                  |
+| ElementDataSize | 元素的连接数                                                 |
+| npe             | 某种特定类型的单元的数量                                     |
+| type            | 单元的类型, 即下面的ElemtType                                |
+| first           | 区域中的第一个单元的索引, 即Element No.                      |
+| last            | 最后一个单元的索引                                           |
+| n_boundary      | 区域中最后一个边界单元的索引 (如果单元未排序则置为0)         |
+| parent_flag     | 是否存在父节点                                               |
+| connectivity    | 单元内节点的关系数据, 针对所有的形状单元(即除了Mix混合类以外) |
+| parent_data     | 对于边界单元, 数组内包含单元或单元面的信息(可以设置为NULL)   |
+| offset          | 元素链接的偏移数据, `NGON_n`、`NFACE_n`和`MIXED`类需要       |
 
 - `cg_section_write()` 在给定的 `Zone_t` 对象下新建一个**单元片段 (element section)**，即 `Elements_t` 对象。
 - 一个 `Zone_t` 对象下可以有多个 `Elements_t` 对象：
@@ -478,6 +582,47 @@ ier = cgp_elements_read_data(int i_file, int i_base, int i_zone, int i_sect,
   - 在 `cgp_elements_write_data()` 及 `cgp_elements_write_data()` 中为当前进程所读写的首、末单元的编号。
 - `n_boundary` 为当前 `Elements_t` 对象的*边界单元数*：若 `n_boundary > 0`，则单元已被排序，且前  `n_boundary` 个单元为边界单元。
 - `parent_flag` 用于判断 parent data 是否存在。
+
+
+
+## Element Type (单元类型)
+
+Element数据可以分为两大类: **普通形状单元** 和 **混合单元**(MIXED). 普通形状单元就是固定的形状, 例如2D中有四边形和三角形; 对于混合单元, 使用 `NGON_n` 和 `NFACE_n` 可以定义任意多面体单元.
+
+### 普通形状单元
+
+CGNS 支持八种单元形状: 点、[线](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_line)、 [三角形](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_tri)、[四边形](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_quad)、 [四面体](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_tetra)、[五面体](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_penta)、 [六棱柱](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_pyramid)和[六面体](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_hexa)。描述体积的单元称为[3D Elements](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_3d)。描述面的是[2D Elements](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_2d)。线和点元素分别称为[1D](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_line)和0D Elements。线性插值指两个点组成一条线, 二次插值即两个点组成的线中间还会多一个点, 三次及四次插值同上. 一般来说只会用到线性插值和二次插值, 下面是单元类型及对应的表: 
+
+| 类型 | 形状                                                         | 线性插值  | 二次插值             | 三次插值                       | 四次插值                       |
+| ---- | ------------------------------------------------------------ | --------- | -------------------- | ------------------------------ | ------------------------------ |
+| 0D   | Point（点）                                                  | `NODE`    | `NODE`               | `NODE`                         | `NODE`                         |
+| 1D   | [Line](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_line)（线） | `BAR_2`   | `BAR_3`              | `BAR_4`                        | `BAR_5`                        |
+| 2D   | [Triangle](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_tri)（三角形） | `TRI_3`   | `TRI_6`              | `TRI_9, TRI_10`                | `TRI_12, TRI_15`               |
+|      | [Quadrangle](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_quad)（四边形） | `QUAD_4`  | `QUAD_8, QUAD_9`     | `QUAD_12, QUAD_16`             | `QUAD_P4_16, QUAD_25`          |
+| 3D   | [Tetrahedron](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_tetra)（四面体） | `TETRA_4` | `TETRA_10`           | `TETRA_16, TETRA_20`           | `TETRA_22, TETRA_34, TETRA_35` |
+|      | [Pyramid](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_pyramid)（金字塔形） | `PYRA_5`  | `PYRA_13, PYRA_14`   | `PYRA_21, PYRA_29, PYRA_30`    | `PYRA_P4_29, PYRA_50, PYRA_55` |
+|      | [Pentahedron](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_penta)（五面体） | `PENTA_6` | `PENTA_15, PENTA_18` | `PENTA_24, PENTA_38, PENTA_40` | `PENTA_33, PENTA_66, PENTA_75` |
+|      | [Hexahedron](http://cgns.github.io/CGNS_docs_current/sids/conv.html#unst_hexa)（六面体） | `HEXA_8`  | `HEXA_20, HEXA_27`   | `HEXA_32, HEXA_56, HEXA_64`    | `HEXA_44, HEXA_98, HEXA_125`   |
+
+### 混合单元
+
+对于混合单元, 使用 `NGON_n` 和 `NFACE_n` 可以定义任意多面体单元, `NGON_n` 用于指定网格中的所有面, 然后用 `NFACE_n` 将多面体单元定义为这些面的集合. 除边界面外，多面体单元的每个面都必须由另一个多面体单元共享. `ElementConnectivity` 用于描述网格中每个面的节点列表, 而 `ElementStartOffset` 提供`ElementConnectivity` 数组中每个面的起始位置.
+
+
+
+## 非结构化网格示例
+
+以一个立方体形状的非结构网格, 该zone的每个边缘有3个节点, 生成非结构化网格共27个节点, 分解图如下:
+
+![3 x 3 x 3 非结构化网格，带有编号节点](http://cgns.github.io/CGNS_docs_current/sids/conv.figs/unst_example.gif)
+
+这个区域包含6个六面体单元, 分别编号1-8, 点到单元的连接(connectivity)为:
+
+![pp1VAmt.png](https://s1.ax1x.com/2023/03/14/pp1VAmt.png)
+
+也可以划分为点到面的连接, 这个可以直接由connectivity计算得出. 这个模型中有24个边界面, 对应单元编号9-32, 每个边界面的类型均为 `QUAD_4` , 下表显示了每个边界面的单元连通性，以及其父单元的单元编号和面编号:
+
+![](https://s1.ax1x.com/2023/03/14/pp1Vwc9.png)
 
 
 
@@ -573,9 +718,9 @@ ier = cgp_field_general_read_data(int i_file, int i_base, int i_zone, int i_soln
 - 在调用 `cg_sol_write()` 时，将 `location` 的值由 `CGNS_ENUMV(Vertex)` 改为 `CGNS_ENUMV(CellCenter)`。
 - 在结构网格的各逻辑方向上，用于存放数据的多维数组的长度必须与单元数量协调。
 
-## `rind data` 外表数据
+## `rind data` 表皮数据
 
-**外表数据 (rind data)** 是指存储在网格表面的一层或多层**影子单元 (ghost cells)** 上的数据 ：
+**表皮数据 (rind data)** 是指存储在网格表面的一层或多层**影子单元 (ghost cells)** 上的数据 ：
 
 ```
 ┌───╔═══╦═══╦═══╗───┬───┐      ═══ 网格单元
