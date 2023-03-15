@@ -1,8 +1,10 @@
+
+
 # CGNS简介
 
 ## 概述
 
-CFD通用标记系统，既是一种文件格式规范，也表示用于读写这种文件格式的相应的开源软件库。使用CGNS格式，可方便CFD数据交换，存储及应用，避免现有不同CFD软件交换数据时可能会出现的歧义。CGNS格式描述了一个CFD算例，其内容包括：
+CFD通用标记系统(CFD General Notation System) ，既是一种文件格式规范，也表示用于读写这种文件格式的相应的开源软件库。使用CGNS格式，可方便CFD数据交换，存储及应用，避免现有不同CFD软件交换数据时可能会出现的歧义。CGNS格式描述了一个CFD算例，其内容包括：
 
 >  网格、流场、边界条件；
 >
@@ -171,7 +173,7 @@ C解决可移植性问题, 在头文件中声明, 根据CGNS版本将数据类�
 
 结构网格与非结构网格最大的区别, 就是在于网格顶点的定义上: 
 >  - 结构网格的点之间的邻接是有序、规则的，单元是二维的四边形、三维的六面体, 不用存储元素间坐标关系
-> - 非结构网格的点之间的邻接是无序的、不规则的，每个网格点可以有不同的邻接网格数，单元有二维的三角形、四边形，三维的四面体、六面体、三棱柱和金字塔等多种形状, 需要存储元素间的关系. 元素间的关系通常包括元素类型或者形状, 以及每个元素的顶点列表
+> - 非结构网格的点之间的邻接是无序的、不规则的，每个网格点可以有不同的邻接网格数，单元有二维的三角形、四边形，三维的四面体、六面体、三棱柱和金字塔等多种形状, 需要存储单元间的关系. 单元间的关系通常包括单元类型或者形状, 以及每个单元的顶点列表
 
 在非结构网格中, 顶点从1到 *N* 进行编号组成索引，其中*N*是区域中的节点数。元素由一个或多个节点组成，其中每个顶点由其索引表示。区域 ( Zone ) 由单元cell组成, 每个区域也由其索引进行表示。即非结构网格不像结构网格可以由坐标得出其几何关系，各个顶点间的关系需要专门的表示方式
 
@@ -234,9 +236,9 @@ ier = cg_get_file_type(int fn, /* output: */int *file_type);
 
 ## `CGNSBase_t` 根节点
 
-cgns的根节点标识为CGNSBase_t，名称由用户定义。一个文件中可含有多个CGNSBase_t，这些Base可以用于并行计算时候交给不同的节点进行计算，不同的Base间属于程序间的并行。
+CGNS的根节点标识为CGNSBase_t，名称由用户定义。一个文件中可含有多个CGNSBase_t，这些Base可以用于并行计算时候交给不同的节点进行计算，不同的Base间属于程序间的并行。
 
-`CGNSBase_t`包含计算网格的单元维数(CellDimension) 和物理维数(PhysicalDimension), 还附带又全局使用的信息, 包含参考状态, 一组流动方程, 尺寸单位等。除此之外还有一些由用户自定义的注释信息等。其中CellDimension和PhysicalDimension是必填字段, 读取时需要检测。
+`CGNSBase_t`包含计算网格的单元维数(CellDimension) 和物理维数(PhysicalDimension), 还附带有全局使用的信息, 包含参考状态, 一组流动方程, 尺寸单位等。除此之外还有一些由用户自定义的注释信息等。其中CellDimension和PhysicalDimension是必填字段, 读取时需要检测。
 
 ### **层级结构**
 
@@ -297,7 +299,7 @@ Zone_t
 ### **参数解析**
 
 1.  Zone_size\[3][IndexDimension], 即结构网格中列数等于维度数, 非结构网格中列数等于1
-    1.  `VertexSize`是每个索引方向上的顶点数, 在非结构网格中顶点数只有一个维度, 即`VertexSize` 是一个数; 在结构化网格中顶点数在每个维度上都有一个, 即`VertexSize` 是一个长度等于维度数的数组
+    1.  `VertexSize`是每个索引方向上的顶点数. 在非结构网格中顶点数与维度无关, 所以只有一列, 即`VertexSize` 是一个数; 在结构化网格中每个方向上的顶点都需要存储, 所以列数与维度有关, 即`VertexSize` 是一个长度等于维度数的数组
     2.  `CellSize`是每个方向上的单元数, 即domain内部的单元数。这两个网格大小的数组会被传递到`grid-coordinate` `flow-solution`  `discrete-data`。(在3D结构化网格, CellSize = VertexSize - [1,1,1] ; 在3D非结构化网格, CellSize就是 3D 单元的总数)
     3.  `VertexSizeBoundary` 是边界节点的数量, 只有当节点在内部节点和边界节点之间排序时才有效。默认情况下该参数为0, 意味着未排序。此参数仅对非结构化网格有用, 结构网格中始终为0。
 2.  `GridCoordinates_t` 用来定义网格,包含了网格顶点的物理坐标, 并且可以包含rind 或ghost points 的物理坐标. 在涉及网格节点排序时, GridCoordinates_t 中的DataArray_t先列出边界节点的数据, 然后再是内部节点的数据. 
@@ -324,6 +326,8 @@ ier = cg_zone_read(int i_file, int i_base, int i_zone,
 | nzones    | base`B`中存在的区域数。                                      |
 | zone_name | 区域的名称。                                                 |
 | zone_size | 二维数组， 其行数为 `3` (即zone_size\[3][IndexDimension])，各行分别表示*顶点数*、*单元数*、*边界单元数* 。对于**结构网格 **：*列数* 至少等于*空间维数*，每列分别对应一个（逻辑）方向。各方向的*单元数* 总是比*顶点数* 少 `1`。*边界单元* 没有意义，因此最后一行全部为 `0`。对于**非结构网格**：*列数* 至少为 `1`。若没有对单元排序（边界单元在前、内部单元在后），则*边界单元数*为 `0` |
+
+
 
 ## 定位操作
 
@@ -357,6 +361,8 @@ cg_gopath(i_file, "/Base/Zone1/User");
 | ...    | 用于指定节点路径的变量参数列表, 格式为"CGNS_NodeLable/Name", NodeIndex。节点可以通过它们的标签lable或名称name来标识。用名字标识时NodeIndex为0。 |
 | "end"  | 用于表示参数列表结束, 在c中可以用NULL表示                    |
 
+
+
 ## 错误处理
 
 当发生错误时, errno会置为非0, 调用cg_get_error获取错误信息。
@@ -368,6 +374,8 @@ error_message = const char *cg_get_error();
 void cg_error_exit();
 void cg_error_print();
 ```
+
+
 
 ## 并行IO杂项
 
@@ -399,7 +407,7 @@ void cgp_error_exit();
 
 ##  `GridCoordinates_t` (网格坐标)
 
-用于描述与特定zone相关联的网格坐标, 需要读取zone中ZoneType的zone_size[0]中的顶点数信息来申请xyz坐标的大小. z坐标的有无与维数有关
+用于描述与特定Zone相关联的网格坐标, 需要读取Zone中ZoneType的Zone_size[0]中的顶点数信息来申请xyz坐标的大小. xyz坐标的有无与维数有关
 
 #### **层级结构**
 
@@ -426,7 +434,7 @@ ier = cg_ncoords( int i_file , int i_base , int i_base ,
     /* output: */int *ncoords );
 ```
 
-### CoordinateX / Y / Z
+## CoordinateX / Y / Z
 
 实际存储的坐标信息, Z坐标只有在3D情况下才会存在
 
@@ -472,7 +480,7 @@ ier = cgp_coord_read_data(int i_file, int i_base, int i_zone, int i_coord,
 
 
 
-# 单元连接性
+# 单区网格单元信息
 
 ## `Elements_t` (非结构网格单元信息)
 
@@ -612,7 +620,7 @@ CGNS 支持八种单元形状: 点、[线](http://cgns.github.io/CGNS_docs_curre
 
 ## 非结构化网格示例
 
-以一个立方体形状的非结构网格, 该zone的每个边缘有3个节点, 生成非结构化网格共27个节点, 分解图如下:
+以一个立方体形状的非结构网格为例, 该zone的每个边缘有3个节点, 生成非结构化网格共27个节点, 分解图如下:
 
 ![3 x 3 x 3 非结构化网格，带有编号节点](http://cgns.github.io/CGNS_docs_current/sids/conv.figs/unst_example.gif)
 
@@ -626,7 +634,150 @@ CGNS 支持八种单元形状: 点、[线](http://cgns.github.io/CGNS_docs_curre
 
 
 
+
+
+# 边界条件BocoData
+
+边界条件BC: Boundary Condition
+
+## 结构网格
+
+尽管本节标题为*结构网格*，但上述方法也可以用于*非结构网格*，只是后者有[更简单的方法](#非结构网格)。
+
+**层级结构**
+
+```c
+Zone
+└── ZoneBC_t
+    └── BC_t
+     	├── IndexRange_t
+    	└── IndexRange_t 
+```
+
+- 每个 `BC_t` 对象都含有一个 `IndexRange_t` 或 `IndexRange_t` 子对象。
+- 所有 `BC_t` 对象都是同一个 `ZoneBC_t` 对象的子对象。
+- 这个唯一的 `ZoneBC_t` 对象是某个 `Zone_t` 对象的子对象，因此是 `GridCoordinates_t` 对象及 `FlowSolution_t` 对象的同辈对象。
+
+两种 BC 表示方法：
+
+- `PointRange` 适用于**结构网格的矩形边界**。
+
+- `PointList` 适用于**所有边界** , 除 `PointRange` 外的点都应该用其补充表示。
+
+  
+
+![单一边界条件的 CGNS 层次结构](http://cgns.github.io/CGNS_docs_current/sids/bc.figs/bctree.gif)
+
+  
+
+**对应库函数**
+
+```c
+// Write boundary condition type and data:
+ier = cg_boco_write(int i_file, int i_base, int i_zone,
+    char *boco_name, BCType_t boco_type/* CGNS_ENUMV(BCType_t) */,
+    PointSetType_t point_set_type/* CGNS_ENUMV(PointRange) | CGNS_ENUMV(PointList) */,
+    cgsize_t n_point, cgsize_t *point_set,
+    /* output: */int *i_boco);
+
+// Get number of boundary condition in zone:
+ier = cg_nbocos(int i_file, int i_base, int i_zone,
+    /* output: */int *n_boco);
+
+// Get boundary condition info:
+ier = cg_boco_info(int i_file, int i_base, int i_zone, int i_boco,
+    /* output: */char *boco_name, BCType_t *boco_type,
+    PointSetType_t *point_set_type, cgsize_t *n_point,
+    int *NormalIndex,
+    cgsize_t *NormalListSize,
+    DataType_t *NormalDataType,
+    int *ndataset);
+
+// Read boundary condition data and normals:
+ier = cg_boco_read(int i_file, int i_base, int i_zone, int i_boco,
+    /* output: */cgsize_t *point_set, void *normal_list);
+// read
+ier = cg_boco_gridlocation_read( int fn , int B , int Z , int BC , 
+    /* output: */GridLocation_t *location );
+
+// for type of FamilySpecified
+ier = cg_family_read(int fn, int B, int Fam, 
+    /* output: */char *FamilyName, int *nFamBC, int *nGeo)
+```
+
+| 变量名         | 功能                                                         |
+| -------------- | ------------------------------------------------------------ |
+| bocotype       | 边界条件的类型. 特殊的,如果是FamilySpecified, 是为边界所属的family指定类型 |
+| point_set_type | 边界条件中点的类型, 分别有`PointRange` 和 `PointList`        |
+| n_point        | 定义边界条件区域的顶点或单元数。对于`PointRange`来说 `npnts`始终为两个。而对于`PointList` 为列表中顶点或单元的数量 |
+| NormalIndex    | 边界条件face的法线向量上的索引                               |
+| NormalListSize | 如果法线在`NormalList`中定义， 则`NormalListSize`是面片中的点数乘以`phys_dim`，即在场中定义矢量所需的坐标数。如果法线未在`NormalList`中定义，则 `NormalListSize`为 0 |
+| NormalDataType | 发现                                                         |
+| ndataset       |                                                              |
+| point_set      |                                                              |
+| normal_list    |                                                              |
+| location       |                                                              |
+|                |                                                              |
+
+边界条件的范围可以使用PointRange使用点或单元的范围来定义，或者使用`PointList`使用边界条件应用的所有点或元素的离散列表来定义。当要在点以外的任何地方应用边界条件时，必须使用`BC_t`节点下的`GridLocation_t来指示这一点。``GridLocation_t`的值可以由`cg_boco_gridlocation_read`和`cg_boco_gridlocation_write`读取或写入 。与以前版本的库一样，这也可以通过首先使用[`cg_goto来完成`](http://cgns.github.io/CGNS_docs_current/midlevel/navigating.html#goto)````````[``](http://cgns.github.io/CGNS_docs_current/midlevel/navigating.html#goto) 访问`BC_t`节点，然后使用 [`cg_gridlocation_read`](http://cgns.github.io/CGNS_docs_current/midlevel/location.html#gridlocation) 或[`cg_gridlocation_write`](http://cgns.github.io/CGNS_docs_current/midlevel/location.html#gridlocation)。
+
+
+
+|      | `npnts`        |      | 定义边界条件区域的点数或元素数。对于`PointRange`的`ptset_type`， `npnts`始终为两个。对于`PointList`的`ptset_type`， `npnts`是列表中点或元素的数量。`````````` |
+| ---- | -------------- | ---- | ------------------------------------------------------------ |
+|      | `积分`         |      | 定义边界条件区域的点或元素索引数组。应该有`npnts`值，每个维度 [`IndexDimension`](http://cgns.github.io/CGNS_docs_current/sids/cgnsbase.html#IndexDimension) （即，非结构化网格为 1，具有 2-D 或 3-D 元素的结构化网格分别为 2 或 3）。 |
+|      | `正常指数`     |      | 指示边界条件面片法线的计算坐标方向的索引向量。               |
+|      | `普通列表标志` |      | 指示法线是否在`NormalList`中定义 并且要写出的标志；如果已定义则为 1，如果未定义则为 0。 |
+|      | `正常列表大小` |      | 如果法线在`NormalList`中定义， 则`NormalListSize`是面片中的点数乘以`phys_dim`，即在场中定义矢量所需的坐标数。如果法线未在`NormalList`中定义，则 `NormalListSize`为 0。 |
+|      | `普通数据类型` |      | 法线定义中使用的数据类型。法线可接受的数据类型是`RealSingle`和 `RealDouble`。 |
+|      | `普通列表`     |      | 垂直于指向区域内部的边界条件面片的向量列表。                 |
+|      | `n数据集`      |      | 当前边界条件的边界条件数据集数。                             |
+|      | `地点`         |      | 点集定义中使用的网格位置。当前允许的位置是`Vertex`（如果未指定，则为默认位置）和`CellCenter`。`CellCenter`的解释 以及网格位置的其他允许值取决于基本单元维度。对于`CellDim` =1， `CellCenter`指的是线元素。`CellDim` =2 时， `CellCenter`指面元，允许附加值`EdgeCenter 。`对于`CellDim` =3， `CellCenter`指的是体积元素，除了 `EdgeCenter` ，可以使用 `FaceCenter`、 `IfaceCenter`、`JFaceCenter`和`KFaceCenter`的值。 |
+|      | `呃`           |      | 错误状态。                                                   |
+
+其中
+
+- `cg_boco_write()` 用于创建一个表示具体边界条件的 `BC_t` 对象。
+- `boco_type` 的取值必须是枚举类型 `BCType_t` 的有效值，例如 `BCWallInviscid | BCInflowSupersonic | BCOutflowSubsonic`，完整列表参见《[Boundary Condition Type Structure Definition](https://cgns.github.io/CGNS_docs_current/sids/bc.html#BCType)》。
+- 二维数组 `point_set` 用于指定顶点编号，其行数（至少）为 `n_point`。
+  - 对于结构网格，`point_set` 的列数为*空间维数*，而 `n_point`
+    - 为 `2`，若 `point_set_type` 为 `CGNS_ENUMV(PointRange)`。此时 `point_set` 的第一、二行分别表示编号的下界、上界。
+    - 为 此边界的顶点总数，若 `point_set_type` 为 `CGNS_ENUMV(PointList)`。
+  - 对于非结构网格，`point_set` 的列数为 `1`，而 `n_point`
+    - 为 此边界的顶点总数，且 `point_set_type` 只能为 `CGNS_ENUMV(PointList)`。
+
+## 非结构网格
+
+尽管*非结构网格*可以像*结构网格*那样，通过指定边界上的*顶点*来施加边界条件，但利用读写单元时创建的 `Elements_t` 对象来指定边界上的*单元*通常会更加方便。
+
+主要的 API 如下：
+
+```c
+// Write boundary condition type and data:
+ier = cg_boco_write(int i_file, int i_base, int i_zone, char *boco_name,
+    BCType_t boco_type/* CGNS_ENUMV(BCType_t) */,
+    PointSetType_t point_set_type/* CGNS_ENUMV(PointRange) | CGNS_ENUMV(PointList) */,
+    cgsize_t n_cell, cgsize_t *cell_set,
+    /* output: */int *i_boco);
+
+// Write grid location:
+ier = cg_gridlocation_write(GridLocation_t grid_location/*
+    CGNS_ENUMV(CellCenter) | CGNS_ENUMV(FaceCenter) |
+    CGNS_ENUMV(EdgeCenter) | CGNS_ENUMV(Vertex) */);
+// Read grid location:
+ier = cg_gridlocation_read(GridLocation_t *grid_location);
+```
+
+其中
+
+- 这里的 `cg_boco_write()` 在形式上与*结构网格*版本一样，只是将 `n_point`、`point_set` 替换成了 `n_cell`、`cell_set`。
+- `grid_location == CGNS_ENUMV(FaceCenter)` 表示当前边界条件定义在*面单元*上，即 `cell_set` 是存储*面单元*编号的数组。
+- 调用 `cg_gridlocation_write()` 之前必须先用 `cg_goto()` 定位到所需的 `BC_t` 对象。
+
+
+
 # 流场数据
+
 ## `FlowSolution_t`
 
 **层级结构**
@@ -758,102 +909,6 @@ ier = cg_rind_read(int *rind_data);
 - 外表数据存储在（根据影子单元层数）扩充的流场数组中，因此在结构网格的各逻辑方向上，用于存放数据的多维数组的长度必须与*扩充后的*单元数量协调。
 
 
-
-
-
-# 边界条件BocoData
-
-边界条件BC: Boundary Condition
-
-## 结构网格
-
-尽管本节标题为*结构网格*，但上述方法也可以用于*非结构网格*，只是后者有[更简单的方法](#非结构网格)。
-
-**层级结构**
-
-```c
-Zone
-└── ZoneBC_t
-    └── BC_t
-     	├── IndexRange_t
-    	└── IndexRange_t 
-```
-
-- 每个 `BC_t` 对象都含有一个 `IndexRange_t` 或 `IndexRange_t` 子对象。
-- 所有 `BC_t` 对象都是同一个 `ZoneBC_t` 对象的子对象。
-- 这个唯一的 `ZoneBC_t` 对象是某个 `Zone_t` 对象的子对象，因此是 `GridCoordinates_t` 对象及 `FlowSolution_t` 对象的同辈对象。
-
-两种 BC 表示方法：
-
-- `PointRange` 适用于**结构网格的长方形边界**。
-- `PointList` 适用于**所有边界** , 除 `PointRange` 外的点都应该用其补充表示。
-
-**对应库函数**
-
-```c
-// Write boundary condition type and data:
-ier = cg_boco_write(int i_file, int i_base, int i_zone,
-    char *boco_name, BCType_t boco_type/* CGNS_ENUMV(BCType_t) */,
-    PointSetType_t point_set_type/* CGNS_ENUMV(PointRange) | CGNS_ENUMV(PointList) */,
-    cgsize_t n_point, cgsize_t *point_set,
-    /* output: */int *i_boco);
-
-// Get number of boundary condition in zone:
-ier = cg_nbocos(int i_file, int i_base, int i_zone,
-    /* output: */int *n_boco);
-
-// Get boundary condition info:
-ier = cg_boco_info(int i_file, int i_base, int i_zone, int i_boco,
-    /* output: */char *boco_name, BCType_t *boco_type,
-    PointSetType_t *point_set_type, cgsize_t *n_point,
-    int *i_normal,
-    cgsize_t *normal_list_size,
-    DataType_t *normal_data_type,
-    int *n_data_set);
-
-// Read boundary condition data and normals:
-ier = cg_boco_read(int i_file, int i_base, int i_zone, int i_boco,
-    /* output: */cgsize_t *point_set, void *normal_list);
-```
-
-其中
-
-- `cg_boco_write()` 用于创建一个表示具体边界条件的 `BC_t` 对象。
-- `boco_type` 的取值必须是枚举类型 `BCType_t` 的有效值，例如 `BCWallInviscid | BCInflowSupersonic | BCOutflowSubsonic`，完整列表参见《[Boundary Condition Type Structure Definition](https://cgns.github.io/CGNS_docs_current/sids/bc.html#BCType)》。
-- 二维数组 `point_set` 用于指定顶点编号，其行数（至少）为 `n_point`。
-  - 对于结构网格，`point_set` 的列数为*空间维数*，而 `n_point`
-    - 为 `2`，若 `point_set_type` 为 `CGNS_ENUMV(PointRange)`。此时 `point_set` 的第一、二行分别表示编号的下界、上界。
-    - 为 此边界的顶点总数，若 `point_set_type` 为 `CGNS_ENUMV(PointList)`。
-  - 对于非结构网格，`point_set` 的列数为 `1`，而 `n_point`
-    - 为 此边界的顶点总数，且 `point_set_type` 只能为 `CGNS_ENUMV(PointList)`。
-
-## 非结构网格
-
-尽管*非结构网格*可以像*结构网格*那样，通过指定边界上的*顶点*来施加边界条件，但利用读写单元时创建的 `Elements_t` 对象来指定边界上的*单元*通常会更加方便。
-
-主要的 API 如下：
-
-```c
-// Write boundary condition type and data:
-ier = cg_boco_write(int i_file, int i_base, int i_zone, char *boco_name,
-    BCType_t boco_type/* CGNS_ENUMV(BCType_t) */,
-    PointSetType_t point_set_type/* CGNS_ENUMV(PointRange) | CGNS_ENUMV(PointList) */,
-    cgsize_t n_cell, cgsize_t *cell_set,
-    /* output: */int *i_boco);
-
-// Write grid location:
-ier = cg_gridlocation_write(GridLocation_t grid_location/*
-    CGNS_ENUMV(CellCenter) | CGNS_ENUMV(FaceCenter) |
-    CGNS_ENUMV(EdgeCenter) | CGNS_ENUMV(Vertex) */);
-// Read grid location:
-ier = cg_gridlocation_read(GridLocation_t *grid_location);
-```
-
-其中
-
-- 这里的 `cg_boco_write()` 在形式上与*结构网格*版本一样，只是将 `n_point`、`point_set` 替换成了 `n_cell`、`cell_set`。
-- `grid_location == CGNS_ENUMV(FaceCenter)` 表示当前边界条件定义在*面单元*上，即 `cell_set` 是存储*面单元*编号的数组。
-- 调用 `cg_gridlocation_write()` 之前必须先用 `cg_goto()` 定位到所需的 `BC_t` 对象。
 
 
 
