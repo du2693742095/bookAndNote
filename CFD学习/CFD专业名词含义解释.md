@@ -156,7 +156,35 @@ CFD是计算流体动力学（Computational Fluid Dynamics）的英文缩写，�
 
 
 
-格心格式和格点格式各有其优缺点。格心型格式的优点是控制体形状简单，容易通过参数变换的方法进行各种数值积分，这对于发展高精度格式十分有利。此外，计算域边界为格心格式的边，边界条件的实施比较容易。其主要缺点是与格点格式相比，控制体数量比较多，存储量比较大。格点型格式的主要优点是控制体数量比较少；例如在二维三角形和三维四面体背景网格上，对偶网格控制体大约为背景网格控制体的1/2或者1/6；这也导致了内存消耗较低。其缺点是控制体形状复杂，二维时是多边形，三维时则为形状非常复杂的多面体（其面数往往多达几十个，且每个控制体面数可能不同），因此数值积分的计算量很大，难以构造高效的高精度格式。在边界处，对偶网格控制体不能完整地包围中心格点，使边界处计算误差增加。
+## 执行仿真
+
+**“稳态仿真”(Steady State Simulation)** - 忽略时间的影响。瞬态进程 (例如：离心叶轮) 近似于时间平均值，稳态进程则采用移动参考框。当您将**“时间定义”(Time Definition)** 设置为**“稳态仿真”(Steady State Simulation)** 时，以下设置在“属性”(Properties) 面板中可用。
+
+◦ **“迭代数”(Number of Iterations)** - 代码将停止 (稳态) 或移至下一个时间步长 (瞬态) 的点。“迭代数”应当足够大，以满足所有模块的**“收敛条件”(Converge Criterion)**。
+
+◦ **“时间定义”(Time Definition)** - 可以将仿真设置为**“稳态仿真”(Steady State Simulation)**。
+
+◦ **“结果保存频率”(Result Saving Frequency)** - 当运行完成时生成结果文件 Filename.sres。根据**“结果保存频率”(Result Saving Frequency)** 的值，相同的结果文件会被覆盖。
+
+◦ **“网格更新频率(迭代)”(Mesh Update Frequency(Iterations))** - 确定更新网格的频率 (迭代数)。
+
+◦ **“其他输出文件”(Additional Output Files)** - 为**“无其他输出”(No Other Outputs)** 提供选项，或者使用**“Ensight 格式”(Ensight format)** 输出。
+
+• **“瞬态”(Transient)** 仿真 - 包括时间的影响。瞬态问题的示例是随时间变化的边界条件、移动的零件或不稳定性，这些问题只能使用“瞬态”(Transient) 选项来解决。当您将**“时间定义”(Time Definition)** 设置为**“瞬态”(Transient)** 时，以下设置在“属性”(Properties) 面板中可用。
+
+◦ **“迭代数”(Number of Iterations)** - 代码将停止 (稳态) 或移至下一个时间步长 (瞬态) 的点。“迭代数”应当足够大，以满足所有模块的**“收敛条件”(Converge Criterion)**。
+
+◦ **“时间定义”(Time Definition)** - 可以将仿真设置为**“瞬态”(Transient)** 并提供以下选项：
+
+▪ **“仿真时间 (持续时间)”(Simulation Time (Duration))** - 瞬态仿真的持续时间，单位为秒。仿真时间与时间步长数量可确定时间步长的大小。
+
+▪ **“时间步长数”(Number of Time Steps)**
+
+◦ **“结果保存频率”(Result Saving Frequency)** - 确定结果文件 .sres 的输出频率，并控制**“其他输出文件”(Additional Output Files)** 的输出频率。
+
+◦ **“循环计算间隔”(Cycle Computation Interval)** - 确定更新网格的频率 (时间步长)。
+
+◦ **“其他输出文件”(Additional Output Files)** - 为**“无其他输出”(No Other Outputs)** 提供选项，或者使用**“Ensight 格式”(Ensight format)** 输出。
 
 
 
