@@ -314,6 +314,7 @@ ier = cg_zone_write(int i_file, int i_base, char *zone_name, cgsize_t *zone_size
     /* output: */int *i_zone);
 ier = cg_zone_read(int i_file, int i_base, int i_zone,
     /* output: */char *zone_name, cgsize_t *zone_size);
+
 ```
 
 | 变量名    | 功能                                                         |
@@ -482,9 +483,11 @@ ier = cgp_coord_read_data(int i_file, int i_base, int i_zone, int i_coord,
 
 ## `Elements_t` (非结构网格单元信息)
 
-结构网格的*顶点信息* 已经隐含了*单元信息*，因此不需要显式创建单元。与之相反，非结构网格的单元信息需要显式给出, 这里 Element 的含义就是组成一个单元cell的基本类型, 可以是点, 边或面
+结构网格的*顶点信息* 已经隐含了*单元信息*，因此不需要显式创建单元。与之相反，非结构网格的单元信息需要显式给出, 这里 Element 的含义就是组成一个单元cell的基本类型, 可以是点, 边或面，轴对称和旋转坐标的对应内容没有写出, 对应网站的[轴对称和旋转坐标](http://cgns.github.io/CGNS_docs_current/midlevel/grid.html#axisymmetry)。
 
-轴对称和旋转坐标的对应内容没有写出, 对应网站的[轴对称和旋转坐标](http://cgns.github.io/CGNS_docs_current/midlevel/grid.html#axisymmetry)
+在非结构化区域中，节点是从1到n排序的，其中n是区域中的节点的数量。 一个元素由一个或多个点组成，其中每个点由其索引表示。 元素在一个zone内标记为1到m作为其索引，其中m是该区域定义的元素总数。所以 `ElementRange` 中存储的就是排序后每个元素的索引，也就是element的个数。`ElementConnectivity` 中存储的是对应的点索引，可以找到对应的顶点。
+
+CGNS支持八个元素形状：点，线，三角形，四边形，四面体，五面体，金字塔和六面体。 描述体的元素称为3-D元素。 描述面的是二维元素。 线和点元素分别称为1-D和0D元素。在3-D非结构化网格中，单元由3-D元素表示，而边界的贴面由2-D元素来描述。 完整的元素定义不仅仅包括单元。每个元素形状可能具有不同数量的节点，具体取决于是否使用了线性，二次或立方插值。 因此，每种元素的名称由两个部分组成：第一部分描述元素形状，第二部分存储节点的数量。
 
 ### **层级结构**
 
@@ -530,7 +533,7 @@ ier = cg_section_read(int i_file, int i_base, int i_zone, int i_sect,
     /* output: */char *section_name, ElementType_t *element_type,
     cgsize_t *first, cgsize_t *last, int *n_boundary, int *parent_flag);
 
-// read data
+// read data（所有图形，侧重于单元信息）
 ier = cg_elements_read(int i_file, int i_base, int i_zone, int i_sect,
     /* output: */cgsize_t *connectivity, cgsize_t *parent_data);
 ier = cg_elements_partial_write(int i_file, int i_base, int i_zone, int i_sect,
@@ -539,7 +542,7 @@ ier = cg_elements_partial_read(int i_file, int i_base, int i_zone, int i_sect,
     cgsize_t first, cgsize_t last,
     /* output: */cgsize_t *connectivity, cgsize_t *parent_data);
 
-// for MIXED | NGON_n | NFACE_n type:
+// for MIXED | NGON_n | NFACE_n type(多边形或多面体，侧重于面 ):
 ier = cg_poly_section_write(int i_file, int i_base, int i_zone,
     char *section_name, ElementType_t element_type,
     cgsize_t first, cgsize_t last, int n_boundary,
@@ -705,7 +708,7 @@ ier = cg_family_read(int fn, int B, int Fam,
 | NormalIndex    | 边界条件补块法向量的计算坐标方向的索引矢量                   |
 | NormalListSize | 如果法线在`NormalList`中定义， 则`NormalListSize`是面片中的点数乘以`phys_dim`，即在场中定义矢量所需的坐标数。如果法线未在`NormalList`中定义，则 `NormalListSize`为 0 |
 | NormalDataType | 定义法向量的数据精度类型。分为单精度和双精度                 |
-| ndataset       | 本边界条件数据组的数据                                       |
+| ndataset       | 本边界条件数据组的数据的个数                                 |
 | point_set      | 定义边界条件范围的点数据, 即PointList或PointRange的数据，长度应该等于npnts |
 | normal_list    | 指向块内部的边界条件补块的矢量列表法向量                     |
 | location       | 点列表使用的网格位置                                         |
