@@ -481,6 +481,16 @@ ier = cgp_coord_read_data(int i_file, int i_base, int i_zone, int i_coord,
 
 # 单区网格单元信息
 
+## 单元cell
+
+在CGNS中，**单元**是由网格单元的类型、节点坐标和节点之间的连接关系组成。解算器可以使用这些信息来构建数值模型，求解流场等问题。
+
+CGNS可以存储各种类型的网格，如结构化网格、非结构化网格、混合网格等。对于每种类型的网格，CGNS都有相应的单元类型定义。例如，对于结构化网格，CGNS定义了矩形单元、立方体单元等，而对于非结构化网格，CGNS定义了三角形单元、四面体单元等。
+
+在CGNS中，单元信息可以通过两种方式构建。一种是直接指定每个单元的节点编号，即节点之间的连接关系；另一种是指定每个单元的节点坐标，由CGNS根据节点坐标自动推导出节点之间的连接关系。对于非结构化网格，通常采用前一种方式，而对于结构化网格，通常采用后一种方式。
+
+
+
 ## `Elements_t` (非结构网格单元信息)
 
 结构网格的*顶点信息* 已经隐含了*单元信息*，因此不需要显式创建单元。与之相反，非结构网格的单元信息需要显式给出, 这里 Element 的含义就是组成一个单元cell的基本类型, 可以是点, 边或面，轴对称和旋转坐标的对应内容没有写出, 对应网站的[轴对称和旋转坐标](http://cgns.github.io/CGNS_docs_current/midlevel/grid.html#axisymmetry)。
@@ -509,7 +519,7 @@ Elements_t
 │       // NPE := 特定ElementType所包含的node数, 例如NPE[HEXA_8]=8
 └── DataArray_t  
     ├── Name: ElementStartOffset 	// 含多种单元时使用
-    └── Data: int[ElementSize + 1] 
+    └── Data: int[ElementSize + 1]
 ```
 
 ### 对应库函数
@@ -555,6 +565,8 @@ ier = cg_poly_elements_partial_write(int i_file, int i_base, int i_zone, int i_s
 ier = cg_poly_elements_partial_read(int i_file, int i_base, int i_zone, int i_sect,
     cgsize_t first, cgsize_t last,
     /* output: */cgsize_t *connectivity, cgsize_t *offset, cgsize_t *parent_data);
+
+/* parent数据读取*/
 
 /* parallel version (need MPI) */
 ier = cgp_section_write(int i_file, int i_base, int i_zone,
