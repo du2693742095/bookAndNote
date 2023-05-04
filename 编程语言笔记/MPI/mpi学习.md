@@ -321,3 +321,44 @@ int MPI_Type_commit(
 int MPI_Type_free(
     MPI_Datatype* old_mpi_t_p /*in/out*/) // 构建的派生类型
 ```
+
+
+
+## MPI错误处理
+
+几乎任何 MPI 调用都返回一个整数错误代码，表示操作成功。如果没有错误发生，返回码为 `MPI_SUCCESS`； 如果发生错误，MPI 会在返回用户代码之前调用与通信器，窗口或文件对象关联的错误处理程序。有两个预定义的错误处理程序（用户可以定义其他错误处理程序）：
+
+- `MPI_ERRORS_ARE_FATAL` - 错误导致 MPI 程序终止
+- `MPI_ERRORS_RETURN` - 错误导致错误代码传递回用户
+
+通信器和窗口的默认错误处理程序是 `MPI_ERRORS_ARE_FATAL`; 对于文件对象，它是 `MPI_ERRORS_RETURN`。`MPI_COMM_WORLD` 的错误处理程序也适用于与对象无关的所有操作（例如，`MPI_Get_count`）。因此，在不将错误处理程序设置为 `MPI_ERRORS_RETURN` 的情况下检查非 I / O 操作的返回值是多余的，因为错误的 MPI 调用将不会返回。
+
+```c
+// The execution will not reach past the following line in case of error
+int res = MPI_Comm_size(MPI_COMM_WORLD, &size);
+if (res != MPI_SUCCESS)
+{
+    // The following code will never get executed
+    fprintf(stderr, "MPI_Comm_size failed: %d\n", res);
+    exit(EXIT_FAILURE);
+}
+```
+
+要启用用户错误处理，必须先更改 `MPI_COMM_WORLD` 的错误处理程序：
+
+```c
+MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+
+int my_rank = 0;
+int size = 0;
+int res = MPI_Comm_size(MPI_COMM_WORLD, &size);
+res = MPI_Comm_rank(MPI_Comm comm, &my_rank);
+if (res != MPI_SUCCESS)
+{
+    fprintf(stderr, "MPI_Comm_size failed: %d\n", res);
+    MPI_Abort(my_rank, -1);//终止MPI程序
+}
+```
+
+MPI 标准不要求 MPI 实现能够从错误中恢复并继续执行程序。
+
